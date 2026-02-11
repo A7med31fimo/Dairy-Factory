@@ -14,7 +14,7 @@
     <!-- <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet"> -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #2565AE;
@@ -27,7 +27,7 @@
 
         * {
 
-            font-family: "Noto Kufi Arabic", sans-serif;
+            font-family: "Tajawal", sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;

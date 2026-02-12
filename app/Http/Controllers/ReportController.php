@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\ArabicPdf;
 use App\Models\MilkCollection;
 use App\Models\Production;
 use App\Models\Distribution;
@@ -11,7 +10,7 @@ use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Mpdf\Mpdf;
 use App\Http\Controllers\Controller;
 
 class ReportController extends Controller
@@ -60,113 +59,36 @@ class ReportController extends Controller
         $data['date_to']      = $dateTo;
         $data['period_label'] = $this->getPeriodLabel($request->period, $dateFrom, $dateTo);
 
-        // Reshape all Arabic text fields for correct PDF rendering
-        $data = $this->reshapeForPdf($data);
+        // Render the view to HTML
+        $html = view('reports.pdf', $data)->render();
 
-        $pdf = Pdf::loadView('reports.pdf', $data)
-            ->setPaper('a4')
-            ->setOptions([
-                'defaultFont'             => 'dejavu sans',
-                'isHtml5ParserEnabled'    => true,
-                'isRemoteEnabled'         => false,
-                'isFontSubsettingEnabled' => true,
-                'chroot'                  => public_path(),
-                'dpi'                     => 150,
-            ]);
+        // Create mPDF instance with RTL support
+        $mpdf = new Mpdf([
+            'mode'              => 'utf-8',
+            'format'            => 'A4',
+            'default_font'      => 'dejavusans',
+            'margin_left'       => 10,
+            'margin_right'      => 10,
+            'margin_top'        => 10,
+            'margin_bottom'     => 10,
+            'margin_header'     => 5,
+            'margin_footer'     => 5,
+            'orientation'       => 'P',
+            'directionality'    => 'rtl',  // RTL support!
+            'autoScriptToLang'  => true,
+            'autoLangToFont'    => true,
+        ]);
 
+        // Write HTML to PDF
+        $mpdf->WriteHTML($html);
+
+        // Output as download
         $filename = 'report_' . $dateFrom->format('Y-m-d') . '_' . $dateTo->format('Y-m-d') . '.pdf';
-
-        return $pdf->download($filename);
-    }
-
-    /**
-     * Reshape all Arabic strings in the data array for PDF rendering.
-     * dompdf doesn't handle Arabic text shaping natively — this converts
-     * base Arabic characters to their correct joined presentation forms.
-     */
-    private function reshapeForPdf(array $data): array
-    {
-        // Reshape the period label
-        $data['period_label'] = ArabicPdf::reshape($data['period_label']);
-
-        // Reshape milk collections
-        foreach ($data['milkCollections'] as $item) {
-            $item->farmer_name    = ArabicPdf::reshape($item->farmer_name);
-            $item->driver_name    = ArabicPdf::reshape($item->driver_name);
-            $item->vehicle_number = ArabicPdf::reshape($item->vehicle_number);
-            if ($item->notes) {
-                $item->notes = ArabicPdf::reshape($item->notes);
-            }
-        }
-
-        // Reshape productions
-        $ptypes = Production::productTypes();
-        foreach ($data['productions'] as $item) {
-            $item->product_name = ArabicPdf::reshape($item->product_name);
-            $item->product_type_label = ArabicPdf::reshape($ptypes[$item->product_type] ?? $item->product_type);
-            $item->unit = ArabicPdf::reshape($item->unit);
-        }
-
-        // Reshape distributions
-        foreach ($data['distributions'] as $dist) {
-            $dist->shop_name    = ArabicPdf::reshape($dist->shop_name);
-            $dist->driver_name  = ArabicPdf::reshape($dist->driver_name);
-            foreach ($dist->items as $item) {
-                $item->product_name = ArabicPdf::reshape($item->product_name);
-                $item->unit = ArabicPdf::reshape($item->unit);
-            }
-        }
-
-        // Reshape expenses
-        $cats = Expense::categories();
-        foreach ($data['expenses'] as $item) {
-            $item->category_label = ArabicPdf::reshape($cats[$item->category] ?? $item->category);
-            if ($item->notes) {
-                $item->notes = ArabicPdf::reshape($item->notes);
-            }
-        }
-
-        // Reshape static labels
-        $data['label_milk']         = ArabicPdf::reshape('جمع الحليب');
-        $data['label_production']   = ArabicPdf::reshape('الإنتاج');
-        $data['label_distribution'] = ArabicPdf::reshape('التوزيع');
-        $data['label_expenses']     = ArabicPdf::reshape('المصروفات');
-        $data['label_total']        = ArabicPdf::reshape('الإجمالي');
-        $data['label_net_balance']  = ArabicPdf::reshape('الرصيد الصافي للفترة');
-        $data['label_factory']      = ArabicPdf::reshape('مصنع الألبان');
-        $data['label_farmer']       = ArabicPdf::reshape('المزارع');
-        $data['label_driver']       = ArabicPdf::reshape('السائق');
-        $data['label_vehicle']      = ArabicPdf::reshape('رقم السيارة');
-        $data['label_qty']          = ArabicPdf::reshape('الكمية');
-        $data['label_price']        = ArabicPdf::reshape('سعر الليتر');
-        $data['label_subtotal']     = ArabicPdf::reshape('الإجمالي');
-        $data['label_date']         = ArabicPdf::reshape('التاريخ');
-        $data['label_product']      = ArabicPdf::reshape('اسم المنتج');
-        $data['label_type']         = ArabicPdf::reshape('النوع');
-        $data['label_unit']         = ArabicPdf::reshape('الوحدة');
-        $data['label_shop']         = ArabicPdf::reshape('المحل');
-        $data['label_products']     = ArabicPdf::reshape('المنتجات');
-        $data['label_category']     = ArabicPdf::reshape('التصنيف');
-        $data['label_amount']       = ArabicPdf::reshape('المبلغ');
-        $data['label_notes']        = ArabicPdf::reshape('ملاحظات');
-        $data['label_no_data']      = ArabicPdf::reshape('لا توجد بيانات في هذه الفترة');
-        $data['label_total_sales']  = ArabicPdf::reshape('إجمالي المبيعات');
-        $data['label_milk_total']   = ArabicPdf::reshape('إجمالي الحليب المجموع');
-        $data['label_sales_total']  = ArabicPdf::reshape('إجمالي المبيعات (جنيه)');
-        $data['label_exp_total']    = ArabicPdf::reshape('إجمالي المصروفات (جنيه)');
-        $data['label_debts_total']  = ArabicPdf::reshape('الديون المتبقية (جنيه)');
-        $data['label_net_formula']  = ArabicPdf::reshape('مبيعات + قيمة حليب - مصروفات');
-        $data['label_footer']       = ArabicPdf::reshape('تم إنشاء هذا التقرير بواسطة نظام إدارة مصنع الألبان');
-        $data['label_gineh']        = ArabicPdf::reshape('جنيه');
-        $data['label_liter']        = ArabicPdf::reshape('لتر');
-        $data['label_ops']          = ArabicPdf::reshape('عملية');
-        $data['label_batch']        = ArabicPdf::reshape('دفعة');
-        $data['label_item']         = ArabicPdf::reshape('بند');
-        $data['label_print_date']   = ArabicPdf::reshape('تاريخ الطباعة');
-        $data['label_from']         = ArabicPdf::reshape('من');
-        $data['label_to_word']      = ArabicPdf::reshape('إلى');
-
-        return $data;
+        return response()->streamDownload(function () use ($mpdf) {
+            echo $mpdf->Output('', 'S');
+        }, $filename, [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 
     private function getDateRange(Request $request): array

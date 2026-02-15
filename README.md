@@ -140,7 +140,7 @@ expenses                 → المصروفات
 
 | الحزمة | الغرض |
 |--------|-------|
-| `barryvdh/laravel-dompdf` | إنشاء ملفات PDF |
+| `khaled.alshamaa/ar-php and mpdf/mpdf` | إنشاء ملفات PDF |
 | `laravel/sanctum` | المصادقة |
 
 ---
